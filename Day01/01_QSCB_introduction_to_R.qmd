@@ -1,0 +1,407 @@
+---
+title: "Introduction to R programming"
+author: "Ambuj Kumar, PhD Scholar, KCDH, IIT Bombay"
+format:
+  html:
+    embed-resources: true
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+> Notes:
+>
+> \- `#` lines are **comments** (they explain what the code does).
+>
+> \- If you see an error like “there is no package called tidyverse”, run `install.packages("tidyverse")` once.
+
+## Setup
+
+```{r}
+# Load the tidyverse:
+# - readr   (read_csv)
+# - dplyr   (filter, select, mutate, join)
+# - ggplot2 (plots)
+library(tidyverse)  #install.packages("tidyverse")
+```
+
+------------------------------------------------------------------------
+
+# Part A - Introduction to R and Rstudio
+
+R is the programming language.\
+RStudio is an interface that makes R easier to use.
+
+RStudio has four main panels:
+
+-   **Script** - where we write code
+-   **Console** - where code runs
+-   **Environment** - where saved objects appear
+-   **Files / Plots / Help** - for files, plots, and documentation
+
+![](img.png)
+
+## 1. Console vs Script
+
+**Using the console**
+
+-   Type commands directly and press Enter
+
+-   Output appears immediately, but the command is not saved
+
+**Using an R script**
+
+-   Scripts save your work so you can reuse it later.
+
+-   Run code from a script using:
+
+    -   Ctrl + Enter (Windows/Linux)
+    -   Cmd + Enter (Mac)
+
+## 2. Commenting
+
+-   Comments help explain code
+
+-   They start with \# and are ignored by R
+
+```{r}
+3 + 2
+
+#This is a comment and won't be displayed in output
+```
+
+## 3. Working directory
+
+The working directory is the folder where R:
+
+-   reads files from
+
+-   saves output (plots, CSVs)
+
+**Check the current working directory:**
+
+```{r}
+getwd()
+```
+
+**Set a new working directory:**
+
+```{r}
+# in windows
+setwd("C:/Users/ambuj/Downloads/QSCB/")
+```
+
+## 4. Functions
+
+-   Functions take inputs (arguments) and return outputs.
+
+-   We have actually already used two functions in this workshop - getwd() and setwd(). getwd() does not take an input, but outputs your working directory. setwd() takes a path as its input, and sets it as your working directory.
+
+-   other example: sum()
+
+```{r}
+sum(5,3)
+```
+
+## 5. Objects
+
+It is useful to store data or result so that we can use them later on for other parts of the analysis. To do this, we turn the data into an object (also called a variable). We can use either the operator = or \<- to do this. In both cases the object where we store the result is on the left-hand-side, and the result from the operation is on the right-hand-side.
+
+For example, the below code assigns the number 5 to the object X using the = operator. You can print out what the X object is by just typing it into the console or running it in your script.
+
+```{r}
+X = 5
+X
+```
+
+More examples:
+
+```{r}
+result1 = 2+2
+result1
+
+result2 <- 2+3
+result2
+```
+
+Remember, if you use the same object name multiple times, R will overwrite the previous object you had created.
+
+```{r}
+Y <- 5
+Y <- 10
+Y
+```
+
+**Use clear and descriptive names for your objects, such as data_raw and data_normalised, instead of vague names like data1 and data2. This makes it easier to track different steps in your analysis.**
+
+we will work with objects which are dataframes (i.e. tables) and vectors (a series of numbers and/or strings). Let’s make a simple vector now to get familiar.
+
+```{r}
+my_vector <- c("A", "B", "C")
+# extract the first element from the vector
+my_vector[1]
+```
+
+## 5. R Packages
+
+Functions are really useful tools that can be used to manipulate data. Although some basic functions, like sum() and setwd() are avaliable by default when you install R, some more exciting functions are not. An R package contains a collection of functions (usually that perform related tasks), as well as documentation to explain how to use the functions.
+
+Once we have identified a package we want to use, we can install and load it so we can use it. Here we will use the tidyverse package which includes lots of useful functions for data managing, we will use the package later in this session.
+
+**Install the tidyverse package**
+
+```{r}
+#install.packages("tidyverse")
+# setRepositories(ind = 1:3)
+# 
+# required.packages <- c("Seurat", "harmony", "glmGamPoi")
+# 
+# 
+# InstallMissing <- function(packages) {
+#   for (pkg in packages) {
+#     if (!require(pkg, character.only = TRUE)) {
+#       install.packages(pkg, dependencies = TRUE)
+#       library(pkg, character.only = TRUE)
+#     }
+#   }
+# }
+# 
+# InstallMissing(required.packages)
+```
+
+**Load the tidyverse package so we can use it.**
+
+library(tidyverse)
+
+## 6. I need help!
+
+As described above, every R package includes documentation to explain how to use functions. For example, to find out what a function in R does, type a ? before the name and help information will appear in the Help panel on the right in RStudio.
+
+```{r}
+?sum
+```
+
+## 7. Common R errors
+
+R error messages are common and often cryptic. You most likely will encounter at least one error message during this tutorial itself. Some common reasons for errors are:
+
+-   Case sensitivity: In R, as in other programming languages, case sensitivity is important. ?install.packages is different to ?Install.packages.
+
+-   Missing commas
+
+-   Mismatched parentheses or brackets or unclosed parentheses, brackets or apostrophes
+
+-   Not quoting file paths ("")
+
+-   When a command line is unfinished, the “+” in the console will indicate it is awaiting further instructions. Press ESC to cancel the command.
+
+# Part B - Base R dataset: iris
+
+## 1. Load iris (already available in base R)
+
+```{r}
+# `iris` comes with R. You do NOT need to download anything.
+# `data(iris)` loads the iris built-in datasets.
+data(iris)
+
+# Print the object (shows first rows in the console)
+iris
+```
+
+## 2. Quick inspection (“a must do” check that you should do)
+
+```{r}
+# check first 6 rows
+head(iris)
+
+# Last 6 rows
+tail(iris)
+
+# Dimensions: (rows, columns)
+dim(iris)
+
+# Column names
+colnames(iris)
+```
+
+## 3. Structure + summary
+
+```{r}
+# Structure: column types (numeric / character)
+str(iris)
+
+# Summary stats:
+# - numeric: min, median, mean
+# - categorical/factor: counts per level
+summary(iris)
+```
+
+## 4. Access a column with `$`
+
+```{r}
+# `$` extracts a column by name
+iris$Species
+```
+
+## 5. Subsetting with `[rows, cols]`
+
+```{r}
+# [1, ] means: row 1, all columns
+iris[1, ]
+
+# [, 2] means: all rows, column 2
+iris[, 2]
+
+# [1, 2] means: row 1, column 2 (a single value)
+iris[1, 2]
+
+# First 3 rows (1:3 is the sequence 1,2,3)
+iris[1:3, ]
+```
+
+## 6. **Scatter plots**
+
+-   Used to show the relationship between **two numeric variables**
+-   Each point represents one observation
+-   Helps answer: Are two variables related? Is there a trend or pattern?
+
+```{r}
+ggplot(iris) +
+  geom_point(mapping = aes(x = Sepal.Length, y = Sepal.Width))
+```
+
+## **7. Box plots**
+
+```{r}
+ggplot(
+  iris,
+  aes(Species, Sepal.Length)
+) +
+  geom_boxplot()
+```
+
+## **8. Violin plots**
+
+```{r}
+ggplot(
+  iris,
+  aes(Species, Sepal.Length)
+) +
+  geom_violin()
+```
+
+## **9. Violin plots + box plots**
+
+```{r}
+ggplot(
+  iris,
+  aes(Species, Sepal.Length)
+) +
+  geom_violin() +
+  geom_boxplot(width = 0.2)
+```
+
+# ![](images/clipboard-3451720981.png)
+
+Anatomy of a violin plot ([Source](https://www.labxchange.org/library/items/lb:LabXchange:46f64d7a:html:1))
+
+# Part C - Read a CSV from the web (BMI dataset) or import it locally
+
+## 1. Read CSV directly from a URL
+
+[`https://raw.githubusercontent.com/opencasestudies/ocs-bp-rural-and-urban-obesity/master/data/wrangled/BMI_long.csv`](https://raw.githubusercontent.com/opencasestudies/ocs-bp-rural-and-urban-obesity/master/data/wrangled/BMI_long.csv)
+
+```{r}
+bmi <- read_csv(
+  "https://raw.githubusercontent.com/opencasestudies/ocs-bp-rural-and-urban-obesity/master/data/wrangled/BMI_long.csv"
+)  # you can provide local path here instead of link
+```
+
+## 2. Inspect the imported BMI data
+
+```{r}
+head(bmi)
+dim(bmi)
+colnames(bmi)
+
+table(bmi$Sex)
+```
+
+## 3. Data Manipulation
+
+```{r}
+#Create separate dataframes for men and women
+bmi_men   <- bmi %>% filter(Sex == "Men")
+bmi_women <- bmi %>% filter(Sex == "Women")
+```
+
+```{r}
+# Join: make a single 21st century dataframe
+bmi_combine <- bind_rows(bmi_men, bmi_women)
+sum(is.na(bmi_combine$BMI))
+
+bmi_combine <- bmi_combine %>% filter(!is.na(BMI))
+sum(is.na(bmi_combine$BMI))
+
+#plot a simple histogram using hist()
+hist(bmi_combine$BMI)
+
+bmi_combine <- bmi_combine %>%
+mutate(
+bmi_category = case_when(
+BMI < 18.5 ~ "Underweight",
+BMI < 25.0 ~ "Healthy",            # 18.5–24.9
+BMI < 30.0 ~ "Overweight",         # 25.0–29.9
+TRUE ~ "Obese"                     # 30.0+
+)
+)
+
+#quick check distribution of category
+table(bmi_combine$bmi_category)
+```
+
+```{r}
+# Density plot: BMI distributions
+p_density <- ggplot(bmi_combine, aes(x = BMI, color = Sex)) +
+  geom_density()
+
+p_density  # display plot in R
+```
+
+## 4. Hypothesis test: Is the BMI of men different from those of women?
+
+```{r}
+t.test(x = bmi_men$BMI, y = bmi_women$BMI)
+```
+
+## 5. Saving CSV and plot
+
+```{r}
+# Save the combined dataset to CSV
+write.csv(bmi_combine, "bmi_combine.csv", row.names = FALSE)
+```
+
+```{r}
+# Save the density plot to PDF
+ggsave(
+filename = "myplot.pdf",
+plot = p_density,
+width = 8,
+height = 5
+)
+```
+
+## References:
+
+Books:
+
+-   R Programming for Data Science by Hadley Wickham and Garrett Grolemund
+
+-   An Introduction to R by Alex Douglas, Deon Roos, Francesca Mancini, Ana Couto & David Lusseau
+
+Credits:
+
+-   Saket
+
+-   [intro_to_biologists](https://github.com/melbintgen/intro-to-r/tree/main){.uri}
