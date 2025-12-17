@@ -22,8 +22,6 @@ The authors have deposited their data on [GEO](https://www.ncbi.nlm.nih.gov/geo/
 
 SRA stores the raw sequencing data. While GEO stores the processed data - in our case, these include the count matrices, the Seurat objects and the metadata.
 
-
-
 We will fetch the metadata using pysradb:
 
 ```{bash, eval=FALSE}
@@ -89,8 +87,7 @@ head(sample.scrna)
 table(sample.scrna$patient) %>% sort()
 ```
 
-We will take few samples: H07, H14, H06, H16, H23
-
+We will take few patients: H07, H14, H06, H16, H23
 
 ```{r}
 barcodes.scrna <- intersect(rownames(counts.metadata), colnames(counts))
@@ -137,6 +134,8 @@ We can ask whether these zeroes are 'technical' or something that would be obser
 
 ```{r}
 # for each gene count the number of  zeroes
+library(sparseMatrixStats)
+
 num_zeros <- ncol(counts) - Matrix::rowSums(counts != 0)
 prop_zeroes <- num_zeros/ncol(counts)
 df <- data.frame(gene_mean = rowMeans(counts), gene_variance = rowVars(counts), prop_zeroes = prop_zeroes)
@@ -240,13 +239,22 @@ object.subset <- NormalizeData(object.subset, scale.factor = median(object.subse
 The normalised data is stored in the data layer:
 
 ```{r}
+# this is log(xij/Cj+1)
 layer.data <- LayerData(object = object.subset, layer = "data", assay = "RNA")
-df <- data.frame(mean = rowMeans(layer.data), variance = rowVars(layer.data))
-ggplot(df) + geom_point(mapping = aes(mean, variance)) + geom_abline() +   theme_bw(base_size = 14) 
+
+# this is exp(log(xij/Cj+1)) = xij/Cj+1
+layer.data.remove.log <- as(exp(layer.data), "dgCMatrix")
+
+df <- data.frame(mean = rowMeans(layer.data), variance = rowVars(layer.data), variance_nonlogged = rowVars(layer.data.remove.log))
+
+ggplot(df) + 
+  geom_point(mapping = aes(mean, variance, color='log')) +
+  geom_point(mapping = aes(mean, variance_nonlogged, color='nologged')) +
+geom_abline() +   theme_bw(base_size = 14)  + scale_y_log10()
 
 ```
 
-So the mean variance has no "stabilized". , however you will notice that the variance stabilization is not uniform - there is a bend in the curve at the beginning.
+So the mean variance has now "stabilized". , however you will notice that the variance stabilization is not uniform - there is a bend in the curve at the beginning.
 
 # Feature selection
 
@@ -287,7 +295,7 @@ The total number of UMIs observed for a cell are attributable to 1) cell size (h
 
 ```{r}
 total_umis <- colSums(x = counts)
-gene <- "MALAT1"
+gene <- "MMP9"
 gene_umi <- as.numeric(counts[gene, ])
 
 ggplot(data = data.frame("total_cell_umi" = total_umis, "gene_umi" = gene_umi), aes(total_cell_umi, gene_umi)) +
@@ -300,7 +308,7 @@ This gene (MALAT1) shows an almost linear relationship with sequencing depth of 
 If all the genes showed this linear behaviour, we could have simply "regressed" out the effect of sequencing depth by performing a linear regression of observed gene count against the total sequencing depth of the cell. But it is not a good idea because there are also marker genes such as ALB, (hepatocytes), MS4A1 (a marker for BCells) and CD2 (a marker of T Cells)
 
 ```{r}
-data.to.plot <- FetchData(object = object.subset, layer = "counts", vars = c("ALB", "MS4A1", "CD2", "nCount_RNA"))
+data.to.plot <- FetchData(object = object.subset, layer = "counts", vars = c( "MALAT1", "RPL10", "ALB", "MS4A1", "CD2", "nCount_RNA"))
 head(data.to.plot)
 ```
 
@@ -337,7 +345,7 @@ There are two key properties that any "good normalization" method should achieve
 Let's look into the expression pattern of the same highly expressed gene after running Log Normalization:
 
 ```{r}
-gene <- "MALAT1"
+gene <- "RPL10"
 lognormalized.data <- LayerData(object = object, assay = "RNA", layer = "data")[gene, ]
 ggplot(data.frame("sequencing_depth" = colSums(x = counts), "normalized_values" = lognormalized.data), aes(sequencing_depth, normalized_values)) +
   geom_point() +
@@ -498,9 +506,9 @@ DimPlot(integrated, reduction = "umap.cca", group.by = c("patient", "annot"), sh
 Once we are happy with our integration, we can proceed with clustering:
 
 ```{r}
-integrated <- FindNeighbors(integrated, reduction = "integrated.cca", dims = 1:20)
+integrated <- FindNeighbors(integrated, reduction = "integrated.harmony", dims = 1:20)
 integrated <- FindClusters(integrated, resolution = 0.1,
-                           cluster.name = "cca_clusters")
+                           cluster.name = "harmony_clusters")
 
 ```
 
@@ -511,14 +519,14 @@ DimPlot(integrated, label = T, reduction = "umap.cca")
 # Identifying Hepatocyte cluster
 
 ```{r}
-FeaturePlot(integrated, features = "ALB", reduction = "umap.cca")
+FeaturePlot(integrated, features = "ALB", reduction = "umap.harmony")
 ```
 
 ```{r}
 VlnPlot(integrated, features = "ALB", sort = T)
 ```
 
-# Find differentiating markers between the obese and lean diet  in Macrophages
+# Find differentiating markers between the obese and lean diet in Macrophages
 
 Our next goal is to decipher what genes are differentially expressed in the obese individuals as compared to the lean individauls.
 
@@ -601,13 +609,12 @@ barplot(enrichment.neg, showTerms = 7) + ggtitle("Enrichment of Obese downregula
 
 # Homework
 
-1. Integrate all the different patients that we left out in this analysis and annotate the hepatocyte cluster. 
+1.  Integrate all the different patients that we left out in this analysis and annotate the hepatocyte cluster.
 
-2. Using the hepatocyte cluster, identify zonation markers for the different zones of the liver. You can use the following markers as a guide:
-
+2.  Using the hepatocyte cluster, identify zonation markers for the different zones of the liver. You can use the following markers as a guide:
 
 |  |  |
-|----|----|
+|------------------------------------|------------------------------------|
 | Zone 1 (periportal) | ALB, CPS1, ARG1, PCK1, SDH, SULT1A1, IGF1 |
 | Zone 2 (Midlobular) | HAMP, IGFB2, CYP8B1 |
 | Zone 3(perivenous) | GS,GLT,CAR,AHR,CYP1A, CYP2E1, CYP3A, GSTM1, GK,IGFB1, B-CATENIN |

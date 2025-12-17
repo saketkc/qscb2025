@@ -16,7 +16,7 @@ spatial.rna.objects <- list()
 for (object.name in object.names) {
   object <- readRDS(paste0("/NAS/qscb2025/Guilliams_2022_livercellatlas/data/liver/spatial/", object.name, ".rds"))
   object2 <- CreateSeuratObject(
-    counts = GetAssayData(object, assay = "Spatial", slot = "counts"),
+    counts = LayerData(object, assay = "Spatial", layer = "counts"),
     meta.data = object@meta.data
   )
   object2 <- NormalizeData(object2)
