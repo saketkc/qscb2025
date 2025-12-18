@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QSCB 2025 - Day 02 Workshop Materials</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        :root {
+            --primary-color: #1d1d1f;
+            --secondary-color: #0071e3;
+            --accent-color: #06c;
+            --text-primary: #1d1d1f;
+            --text-secondary: #86868b;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9f9f9;
+            --border-color: #e5e5e5;
+            --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            --font-heading: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+            --spacing-xxl: 4rem;
+            --radius-md: 12px;
+            --radius-lg: 18px;
+        }
+
+        body {
+            font-family: var(--font-body);
+            color: var(--text-primary);
+            line-height: 1.6;
+            font-size: 17px;
+            background-color: var(--bg-primary);
+        }
+
+        .container {
+            max-width: 90%;
+            width: 100%;
+            margin: 0 auto;
+            padding: var(--spacing-xl) 5%;
+        }
+
+        @media (min-width: 1400px) {
+            .container {
+                max-width: 1200px;
+                padding: var(--spacing-xl) var(--spacing-xxl);
+            }
+        }
+
+        header {
+            padding: var(--spacing-xxl) 0 var(--spacing-xl) 0;
+            margin-bottom: var(--spacing-xl);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        h1 {
+            font-family: var(--font-heading);
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-md);
+            letter-spacing: -0.04em;
+            line-height: 1.05;
+        }
+
+        .subtitle {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+            line-height: 1.3;
+            margin-top: var(--spacing-sm);
+        }
+
+        .author {
+            color: var(--text-secondary);
+            font-size: 0.9375rem;
+            margin-top: var(--spacing-sm);
+        }
+
+        .workshop-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing-lg);
+            margin: var(--spacing-xxl) 0;
+        }
+
+        .workshop-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .workshop-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+            border-color: var(--secondary-color);
+        }
+
+        .workshop-number {
+            font-size: 0.875rem;
+            color: var(--secondary-color);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .workshop-title {
+            font-family: var(--font-heading);
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-sm);
+            letter-spacing: -0.02em;
+        }
+
+        .workshop-description {
+            color: var(--text-secondary);
+            font-size: 0.9375rem;
+            line-height: 1.6;
+            flex-grow: 1;
+        }
+
+        .workshop-link {
+            display: inline-flex;
+            align-items: center;
+            color: var(--secondary-color);
+            font-weight: 500;
+            margin-top: var(--spacing-md);
+            font-size: 0.9375rem;
+        }
+
+        .workshop-link::after {
+            content: "→";
+            margin-left: 0.5rem;
+            transition: transform 0.2s ease;
+        }
+
+        .workshop-card:hover .workshop-link::after {
+            transform: translateX(4px);
+        }
+
+        footer {
+            margin-top: var(--spacing-xxl);
+            padding-top: var(--spacing-lg);
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .note {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-left: 3px solid var(--secondary-color);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md) var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+
+        .note-title {
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+            color: var(--primary-color);
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            .subtitle {
+                font-size: 1.25rem;
+            }
+
+            .workshop-grid {
+                grid-template-columns: 1fr;
+                gap: var(--spacing-md);
+            }
+
+            .container {
+                padding: var(--spacing-lg) var(--spacing-md);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>QSCB 2025 - Day 02</h1>
+            <div class="subtitle">Single-Cell RNA-seq Analysis Workshop</div>
+            <div class="author">Saket Choudhary &lt;saketc@iitb.ac.in&gt;</div>
+        </header>
+
+        <main>
+            <div class="note">
+                <div class="note-title">Workshop Materials</div>
+                <p>Select a session below to access the workshop materials. Each session includes interactive code examples, visualizations, and exercises.</p>
+            </div>
+
+            <div class="workshop-grid">
+                <a href="01_scRNAseqHandsOn.html" class="workshop-card">
+                    <div class="workshop-number">Session 01</div>
+                    <div class="workshop-title">Single-Cell RNA-seq Analysis</div>
+                    <div class="workshop-description">
+                        Comprehensive hands-on tutorial covering the fundamentals of single-cell RNA-seq analysis using the human liver dataset from livercellatlas.org. Learn data loading, quality control, normalization, clustering, and cell type annotation.
+                    </div>
+                    <div class="workshop-link">Open workshop</div>
+                </a>
+
+                <a href="02A_liver.html" class="workshop-card">
+                    <div class="workshop-number">Session 02A</div>
+                    <div class="workshop-title">Liver Spatial Transcriptomics</div>
+                    <div class="workshop-description">
+                        Explore spatial transcriptomics analysis using human liver datasets. Work with spatial RNA-seq data, learn integration techniques, and understand tissue architecture through spatial gene expression patterns.
+                    </div>
+                    <div class="workshop-link">Open workshop</div>
+                </a>
+
+                <a href="02B_pbmc_integrate.html" class="workshop-card">
+                    <div class="workshop-number">Session 02B</div>
+                    <div class="workshop-title">PBMC Integration</div>
+                    <div class="workshop-description">
+                        Master data integration techniques using PBMC datasets. Learn about batch correction methods including Harmony, CCA, and FastMNN. Practice label transfer and cross-dataset annotation.
+                    </div>
+                    <div class="workshop-link">Open workshop</div>
+                </a>
+
+                <a href="03_cca.html" class="workshop-card">
+                    <div class="workshop-number">Session 02C</div>
+                    <div class="workshop-title">Canonical Correlation Analysis</div>
+                    <div class="workshop-description">
+                        Deep dive into Canonical Correlation Analysis (CCA) with simulated data. Understand the mathematical foundations and practical applications of CCA in single-cell data integration.
+                    </div>
+                    <div class="workshop-link">Open workshop</div>
+                </a>
+            </div>
+        </main>
+
+        <footer>
+            <p>QSCB 2025 Workshop &middot; Indian Institute of Technology Bombay</p>
+            <p style="margin-top: 0.5rem;">© 2025 All rights reserved</p>
+        </footer>
+    </div>
+</body>
+</html>

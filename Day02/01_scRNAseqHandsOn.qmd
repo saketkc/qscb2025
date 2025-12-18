@@ -1,12 +1,23 @@
 ---
-title: "01_scRNA_seq_handson"
-format: html
-html:
+title: "Day 02 - Single-Cell RNA-seq Analysis Workshop"
+author: "Saket Choudhary <saketc@iitb.ac.in> for QSCB 2025"
+date: today
+format:
+  html:
     embed-resources: true
+    toc: false
+    number-sections: true
+    code-fold: show
+    code-tools: true
+    code-copy: true
+    theme: cosmo
+    css: styles.css
+    fig-width: 8
+    fig-height: 6
+    df-print: paged
 editor: visual
 ---
 
-## 
 
 # Premise
 
@@ -21,6 +32,8 @@ We will focus on single-cell RNA-sequencing for this tutorial.
 The authors have deposited their data on [GEO](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE192740) and on their own [website](https://livercellatlas.org/download.php). We will work with the dataset deposited on their website to keep things uniform. But irrespective, we will walk you through how to download data and metadata from GEO/SRA.
 
 SRA stores the raw sequencing data. While GEO stores the processed data - in our case, these include the count matrices, the Seurat objects and the metadata.
+
+
 
 We will fetch the metadata using pysradb:
 
@@ -41,7 +54,7 @@ In most cases, you will directly work with the GEO metadata. However, since we a
 study_accession study_title     study_summary   organism_name   platform_accession      platform_title  experiment_type bioproject      submission_date     supplementary_files     series_ftp      sample_accession        sample_title    sample_ftp      sample_supplementary    sample_geo2r        sample_type     sample_source_name      sex     age     tissue  cell_type       disease treatment       extract_protocol   label_protocol   sample_geo_accession    sample_status   sample_submission_date  sample_last_update_date sample_channel_count    sample_source_name_ch1      sample_organism_ch1     sample_taxid_ch1        sample_molecule_ch1     sample_extract_protocol_ch1     sample_description sample_data_processing   sample_platform_id      sample_contact_name     sample_contact_email    sample_contact_department       sample_contact_institute    sample_contact_address  sample_contact_city     sample_contact_zip/postal_code  sample_contact_country  sample_instrument_model     sample_library_selection        sample_library_source   sample_library_strategy sample_relation sample_supplementary_file_1     sample_series_id    sample_data_row_count   shortfilename   strain  platform        digestion method        number of added abs     number of cells     ena_fastq_http_1        ena_fastq_http_2        ena_fastq_ftp_1 ena_fastq_ftp_2
 ```
 
-# 
+ 
 
 ## Download counts matrices from geo
 
@@ -65,6 +78,7 @@ suppressPackageStartupMessages({
   library(Seurat)
   library(tidyverse)
   library(ggpubr)
+  library(sparseMatrixStats)
 })
 theme_set(theme_pubr())
 
@@ -73,8 +87,6 @@ counts <- Read10X(data.dir = "/NAS/qscb2025/Guilliams_2022_livercellatlas/Raw_da
 counts.metadata <- read.csv("/NAS/qscb2025/Guilliams_2022_livercellatlas/Raw_data/annot_humanAll.csv")
 rownames(counts.metadata) <- counts.metadata$cell
 sample.scrna <- counts.metadata %>% filter(typeSample == "scRnaSeq")
-
-
 ```
 
 Let's look at what the metadata has:
@@ -87,11 +99,12 @@ head(sample.scrna)
 table(sample.scrna$patient) %>% sort()
 ```
 
-We will take few patients: H07, H14, H06, H16, H23
+We will take few samples: H07, H14, H06, H16, H23
+
 
 ```{r}
 barcodes.scrna <- intersect(rownames(counts.metadata), colnames(counts))
-object.scrna <- CreateSeuratObject(counts = counts[,barcodes.scrna], meta.data = sample.scrna[barcodes.scrna,])
+object.scrna <- CreateSeuratObject(counts = counts[, barcodes.scrna], meta.data = sample.scrna[barcodes.scrna, ])
 
 rm(counts)
 ```
@@ -109,7 +122,7 @@ Before we do any downstream processing, it is always a good idea to explore the 
 The counts (UMIs) are stored in the "counts" layer of the "RNA" assay". You can read about the details of how Seurat stores its information on this [wiki page](https://github.com/satijalab/seurat/wiki/Assay).
 
 ```{r}
-counts <- LayerData(object.subset, layer = "counts", assay="RNA")
+counts <- LayerData(object.subset, layer = "counts", assay = "RNA")
 
 
 # how the first 5 gene' and first 5 cell counts
@@ -134,14 +147,13 @@ We can ask whether these zeroes are 'technical' or something that would be obser
 
 ```{r}
 # for each gene count the number of  zeroes
-library(sparseMatrixStats)
 
 num_zeros <- ncol(counts) - Matrix::rowSums(counts != 0)
-prop_zeroes <- num_zeros/ncol(counts)
+prop_zeroes <- num_zeros / ncol(counts)
 df <- data.frame(gene_mean = rowMeans(counts), gene_variance = rowVars(counts), prop_zeroes = prop_zeroes)
-ggplot(df, aes(gene_mean, prop_zeroes)) + geom_point() + scale_x_log10()
-
-
+ggplot(df, aes(gene_mean, prop_zeroes)) +
+  geom_point() +
+  scale_x_log10()
 ```
 
 Let's try to fit a distribution here. One common distribution that is often used is poisson. The mean of a poisson with
@@ -150,18 +162,21 @@ Let's try to fit a distribution here. One common distribution that is often used
 df$expected_prop_zeros <- exp(-df$gene_mean) # this is P(X=0| lambda) for a poisson
 ggplot(df, aes(x = gene_mean, y = prop_zeroes)) +
   geom_point(alpha = 0.3, size = 1) +
-  geom_line(aes(y = expected_prop_zeros), 
-            color = "red", 
-            linewidth = 1.5) +
+  geom_line(aes(y = expected_prop_zeros),
+    color = "red",
+    linewidth = 1.5
+  ) +
   scale_x_log10() +
   scale_y_continuous(limits = c(0, 1)) +
   labs(
     x = "Gene mean (log10 scale)",
     y = "Proportion of zeros",
   ) +
-  annotate("text", x = max(df$gene_mean)/100, y = 0.9, 
-           label = "Red line: Poisson expectation", 
-           color = "red", hjust = 0) +
+  annotate("text",
+    x = max(df$gene_mean) / 100, y = 0.9,
+    label = "Red line: Poisson expectation",
+    color = "red", hjust = 0
+  ) +
   theme_bw()
 rm(counts)
 gc()
@@ -195,7 +210,7 @@ We will calculate the percentage of mitochondria in all samples:
 
 ```{r}
 object.subset[["percent.mt"]] <- PercentageFeatureSet(object.subset, pattern = "^MT-")
-object.subset[["percent.ribo"]] <- PercentageFeatureSet(object.subset, pattern ="^RP[SL][[:digit:]]")
+object.subset[["percent.ribo"]] <- PercentageFeatureSet(object.subset, pattern = "^RP[SL][[:digit:]]")
 ```
 
 Before we proceed, let's look at the distribution of number of UMIs and number of genes detected in each samples
@@ -208,8 +223,7 @@ VlnPlot(object.subset, features = c("nCount_RNA", "nFeature_RNA", "percent.mt", 
 Higher mitochondrial percentage cells are under stress (or about to die) and ideally we would want to keep them out for the rest of the analysis
 
 ```{r}
-object.subset <- subset(object.subset, percent.mt<10)
-
+object.subset <- subset(object.subset, percent.mt < 10)
 ```
 
 ```{r}
@@ -226,37 +240,34 @@ In an ideal case scenario, we would have wanted the 'sequencing depth' of each c
 library(sparseMatrixStats)
 counts.subset <- LayerData(object = object.subset, layer = "counts", assay = "RNA")
 df <- data.frame(mean = rowMeans(counts.subset), variance = rowVars(counts.subset))
-ggplot(df) + geom_point(aes(mean,variance)) + scale_x_log10() + scale_y_log10()  + geom_abline() +   theme_bw(base_size = 14) 
+ggplot(df) +
+  geom_point(aes(mean, variance)) +
+  scale_x_log10() +
+  scale_y_log10() +
+  geom_abline() +
+  theme_bw(base_size = 14)
 ```
 
 A standard approach of achieving normalisation is to divide the counts per cell by the total counts and multiply by a large number (preferably the median sequencing depth) so that all the cell counts sum to the same (large) value. Additionally, a log is taken to reduce the impact of the large outliers (which also stabilises the variance):
 
 ```{r}
 object.subset <- NormalizeData(object.subset, scale.factor = median(object.subset$nCount_RNA))
-
 ```
 
 The normalised data is stored in the data layer:
 
 ```{r}
-# this is log(xij/Cj+1)
 layer.data <- LayerData(object = object.subset, layer = "data", assay = "RNA")
-
-# this is exp(log(xij/Cj+1)) = xij/Cj+1
-layer.data.remove.log <- as(exp(layer.data), "dgCMatrix")
-
-df <- data.frame(mean = rowMeans(layer.data), variance = rowVars(layer.data), variance_nonlogged = rowVars(layer.data.remove.log))
-
-ggplot(df) + 
-  geom_point(mapping = aes(mean, variance, color='log')) +
-  geom_point(mapping = aes(mean, variance_nonlogged, color='nologged')) +
-geom_abline() +   theme_bw(base_size = 14)  + scale_y_log10()
-
+df <- data.frame(mean = rowMeans(layer.data), variance = rowVars(layer.data))
+ggplot(df) +
+  geom_point(mapping = aes(mean, variance)) +
+  geom_abline() +
+  theme_bw(base_size = 14)
 ```
 
-So the mean variance has now "stabilized". , however you will notice that the variance stabilization is not uniform - there is a bend in the curve at the beginning.
+So the mean variance has no "stabilized". , however you will notice that the variance stabilization is not uniform - there is a bend in the curve at the beginning.
 
-# Feature selection
+## Feature selection
 
 Many genes in this dataset are "not informative" - they are either lowly expressed overall, or expressed in all the celltypes. For downstream analysis, we want to identify "informative" genes - this increases the signal to noise ratio for downstream dimensionaloty reduction.
 
@@ -264,22 +275,22 @@ One way to select these genes would be to calculate a per-gene variance and sele
 
 ```{r,}
 # get UMI counts from object
-counts <- LayerData(object = object.subset, assay = "RNA", layer  = "counts")
+counts <- LayerData(object = object.subset, assay = "RNA", layer = "counts")
 
 # calculate per gene mean
 gene_mean <- rowMeans(x = counts)
-#gene_variance <- apply(X = counts, MARGIN = 1, FUN = var)
+# gene_variance <- apply(X = counts, MARGIN = 1, FUN = var)
 gene_variance <- rowVars(x = counts)
 
 
 ggplot(data = data.frame("gene_mean" = gene_mean, "gene_variance" = gene_variance), aes(gene_mean, gene_variance)) +
   geom_point() +
-  geom_abline(color="red")+
+  geom_abline(color = "red") +
   scale_x_log10() +
   scale_y_log10() +
   xlab("Gene mean") +
   ylab("Gene variance") +
-  theme_bw(base_size = 14) 
+  theme_bw(base_size = 14)
 ```
 
 So genes with higher means will also have higher variance because there is a strong mean-variance relationship exhibited by all genes. One way to adjust for this relationship is to explicitly model the mean-variance relationship by fitting a smooth curve and then identify genes that show high deviation from this "expected" pattern. This is essentially what is done inside the `FindVariableFeatures` function:
@@ -295,12 +306,14 @@ The total number of UMIs observed for a cell are attributable to 1) cell size (h
 
 ```{r}
 total_umis <- colSums(x = counts)
-gene <- "MMP9"
+gene <- "MALAT1"
 gene_umi <- as.numeric(counts[gene, ])
 
 ggplot(data = data.frame("total_cell_umi" = total_umis, "gene_umi" = gene_umi), aes(total_cell_umi, gene_umi)) +
   geom_point() +
-  theme_bw(base_size = 14) + xlab("Total sequencing depth") + ylab(paste0("Gene UMI(", gene))
+  theme_bw(base_size = 14) +
+  xlab("Total sequencing depth") +
+  ylab(paste0("Gene UMI(", gene))
 ```
 
 This gene (MALAT1) shows an almost linear relationship with sequencing depth of a cell. In this case the "heterogeneity across cells " in expression levels of Malat1 are primarly attributable to the fact that these cells were sequenced to different depths and is uninteresting.
@@ -308,7 +321,7 @@ This gene (MALAT1) shows an almost linear relationship with sequencing depth of 
 If all the genes showed this linear behaviour, we could have simply "regressed" out the effect of sequencing depth by performing a linear regression of observed gene count against the total sequencing depth of the cell. But it is not a good idea because there are also marker genes such as ALB, (hepatocytes), MS4A1 (a marker for BCells) and CD2 (a marker of T Cells)
 
 ```{r}
-data.to.plot <- FetchData(object = object.subset, layer = "counts", vars = c( "MALAT1", "RPL10", "ALB", "MS4A1", "CD2", "nCount_RNA"))
+data.to.plot <- FetchData(object = object.subset, layer = "counts", vars = c("ALB", "MS4A1", "CD2", "nCount_RNA"))
 head(data.to.plot)
 ```
 
@@ -345,7 +358,7 @@ There are two key properties that any "good normalization" method should achieve
 Let's look into the expression pattern of the same highly expressed gene after running Log Normalization:
 
 ```{r}
-gene <- "RPL10"
+gene <- "MALAT1"
 lognormalized.data <- LayerData(object = object, assay = "RNA", layer = "data")[gene, ]
 ggplot(data.frame("sequencing_depth" = colSums(x = counts), "normalized_values" = lognormalized.data), aes(sequencing_depth, normalized_values)) +
   geom_point() +
@@ -359,11 +372,11 @@ A second way to achieve variance stabilization (and variable feature selection) 
 We will use SCTransform based analysis for the rest of the work flow.
 
 ```{r}
-object <- SCTransform(object = object,  verbose = FALSE)
+object <- SCTransform(object = object, verbose = FALSE)
 ```
 
 ```{r}
-VariableFeatures(object)
+VariableFeatures(object) %>% head()
 ```
 
 Have we achieved normalisation?
@@ -379,12 +392,13 @@ sct.residual.variance <- rowVars(sct.residual)
 
 df <- data.frame(gene_mean = rowMeans(counts)[names(sct.data.variance)], data_variance = sct.data.variance)
 df$type <- "SCT"
-df2 <-  data.frame(gene_mean = rowMeans(counts)[names(sct.data.variance)], data_variance = lognorm.data.variance[names(sct.data.variance)])
+df2 <- data.frame(gene_mean = rowMeans(counts)[names(sct.data.variance)], data_variance = lognorm.data.variance[names(sct.data.variance)])
 df2$type <- "LogNorm"
 df3 <- rbind(df, df2)
 
-ggplot(df3) + geom_point(aes(gene_mean, data_variance, color=type), size = 0.1) + scale_x_log10()
-
+ggplot(df3) +
+  geom_point(aes(gene_mean, data_variance, color = type), size = 0.1) +
+  scale_x_log10()
 ```
 
 They look similarish (for this dataset)
@@ -409,19 +423,16 @@ The standard deviation (square root of variance) seems to plateau around PC30, s
 
 ```{r}
 DimPlot(object, group.by = "patient")
-
 ```
 
 ```{r}
 DimPlot(object, group.by = "annot")
-
 ```
 
 The standard deviation (sequare root of variance) seems to plateau around PC30, so we will retain 30 PCs for downstream visualization and clustering.
 
 ```{r}
 DimPlot(object)
-
 ```
 
 ## Non linear dimensionality reduction
@@ -429,7 +440,7 @@ DimPlot(object)
 While the previous PCA analysis resulted in 30 dimensions, we want to further reduce the dimension of our dataset to 2 to be able to visualize it. While there are different methods to do this, we will utilize Uniform Manifold Approximation and Projection (UMAP). The goal of UMAP and related dimensionality reduction methods is to find a set of 2-D coordinates for the multidimensional input dataset such that the difference in cell-cell similarities between the low-dimensional and original-dimension dataset is minimised.
 
 ```{r}
-object <- RunUMAP(object, reduction = "pca", dims = 1:30)
+object <- RunUMAP(object, reduction = "pca", dims = 1:30, verbose = FALSE)
 ```
 
 ```{r, fig.width=8, fig.height=7}
@@ -444,8 +455,8 @@ We can now find "clusters" of cells that likely represent the same celltype. For
 
 ```{r}
 # build SNN graph
-object <- FindNeighbors(object, reduction = "pca", dims = 1:30)
-object <- FindClusters(object, resolution = 0.3)
+object <- FindNeighbors(object, reduction = "pca", dims = 1:30, verbose = FALSE)
+object <- FindClusters(object, resolution = 0.3, verbose = FALSE)
 ```
 
 ```{r, fig.width=8, fig.height=7}
@@ -464,52 +475,52 @@ Given the "samples do not mix that well, we will consider integrating these:
 DefaultAssay(object) <- "RNA"
 merged <- JoinLayers(object)
 merged[["RNA"]] <- split(merged[["RNA"]], f = merged$patient)
-merged <- SCTransform(merged) 
+merged <- SCTransform(merged, verbose = FALSE)
 merged <- RunPCA(merged, verbose = FALSE)
 ```
 
 ```{r}
 integrated <- IntegrateLayers(
-    object = merged, method = HarmonyIntegration, normalization.method="SCT",
-    orig.reduction = "pca", new.reduction = "integrated.harmony",
-    verbose = FALSE
+  object = merged, method = HarmonyIntegration, normalization.method = "SCT",
+  orig.reduction = "pca", new.reduction = "integrated.harmony",
+  verbose = FALSE
 )
 integrated <- RunUMAP(integrated,
-                      reduction = "integrated.harmony", dims = 1:20,
-                      reduction.name = "umap.harmony")
-
-
+  reduction = "integrated.harmony", dims = 1:20,
+  reduction.name = "umap.harmony", verbose = FALSE
+)
 ```
 
 We can visualise whether integration has worked or not by doing:
 
 ```{r, fig.width=10, fig.height=5}
-DimPlot(integrated, reduction = "umap.harmony", group.by = c("patient", "annot"), shuffle=T)
-
+DimPlot(integrated, reduction = "umap.harmony", group.by = c("patient", "annot"), shuffle = T)
 ```
 
 We can also use CCA for integration (takes longer):
 
 ```{r, fig.width=10, fig.height=5}
 integrated <- IntegrateLayers(
-    object = merged, method = CCAIntegration, normalization.method="SCT",
-    orig.reduction = "pca", new.reduction = "integrated.cca",
-    verbose = FALSE
+  object = merged, method = CCAIntegration, normalization.method = "SCT",
+  orig.reduction = "pca", new.reduction = "integrated.cca",
+  verbose = FALSE
 )
 integrated <- RunUMAP(integrated,
-                      reduction = "integrated.cca", dims = 1:20,
-                      reduction.name = "umap.cca")
+  reduction = "integrated.cca", dims = 1:20,
+  reduction.name = "umap.cca", verbose = FALSE
+)
 
-DimPlot(integrated, reduction = "umap.cca", group.by = c("patient", "annot"), shuffle=T)
+DimPlot(integrated, reduction = "umap.cca", group.by = c("patient", "annot"), shuffle = T)
 ```
 
 Once we are happy with our integration, we can proceed with clustering:
 
 ```{r}
-integrated <- FindNeighbors(integrated, reduction = "integrated.harmony", dims = 1:20)
-integrated <- FindClusters(integrated, resolution = 0.1,
-                           cluster.name = "harmony_clusters")
-
+integrated <- FindNeighbors(integrated, reduction = "integrated.cca", dims = 1:20, verbose = FALSE)
+integrated <- FindClusters(integrated,
+  resolution = 0.1,
+  cluster.name = "cca_clusters", verbose = FALSE
+)
 ```
 
 ```{r, fig.width=8, fig.height=5}
@@ -519,14 +530,14 @@ DimPlot(integrated, label = T, reduction = "umap.cca")
 # Identifying Hepatocyte cluster
 
 ```{r}
-FeaturePlot(integrated, features = "ALB", reduction = "umap.harmony")
+FeaturePlot(integrated, features = "ALB", reduction = "umap.cca")
 ```
 
 ```{r}
 VlnPlot(integrated, features = "ALB", sort = T)
 ```
 
-# Find differentiating markers between the obese and lean diet in Macrophages
+# Find differentiating markers between the obese and lean diet  in Macrophages
 
 Our next goal is to decipher what genes are differentially expressed in the obese individuals as compared to the lean individauls.
 
@@ -540,7 +551,7 @@ macro <- subset(integrated, annot %in% c("Macrophages"))
 
 Idents(macro) <- "diet"
 
-markers.obese_vs_lean <- FindMarkers(macro, ident.1 = "Obese", ident.2 = "Lean",recorrect_umi=F)
+markers.obese_vs_lean <- FindMarkers(macro, ident.1 = "Obese", ident.2 = "Lean", recorrect_umi = F)
 markers.obese_vs_lean$gene <- rownames(markers.obese_vs_lean)
 head(markers.obese_vs_lean)
 ```
@@ -551,45 +562,62 @@ To visualize these genes we will make use of a "volcano plot" where on the x-axi
 library(ggrepel) # load this library to plot gene names
 
 markers.obese_vs_lean.top10.pos <- markers.obese_vs_lean %>%
-  filter(avg_log2FC>0) %>% filter(p_val_adj<0.05) %>% top_n(n = 10, wt = avg_log2FC)
-markers.obese_vs_lean.top10.neg <- markers.obese_vs_lean  %>%
-   filter(avg_log2FC<0) %>%
-  filter(p_val_adj<0.05) %>% top_n(n = 10, wt = abs(avg_log2FC))
+  filter(avg_log2FC > 0) %>%
+  filter(p_val_adj < 0.05) %>%
+  top_n(n = 10, wt = avg_log2FC)
+markers.obese_vs_lean.top10.neg <- markers.obese_vs_lean %>%
+  filter(avg_log2FC < 0) %>%
+  filter(p_val_adj < 0.05) %>%
+  top_n(n = 10, wt = abs(avg_log2FC))
 markers.obese_vs_lean.top10 <- rbind(markers.obese_vs_lean.top10.pos, markers.obese_vs_lean.top10.neg)
 
-ggplot(markers.obese_vs_lean, aes(avg_log2FC , -log10(p_val))) +
+ggplot(markers.obese_vs_lean, aes(avg_log2FC, -log10(p_val))) +
   geom_point() +
-  geom_point(data = markers.obese_vs_lean.top10, aes(avg_log2FC , -log10(p_val)), color="red" ) +
-  geom_text_repel(data = markers.obese_vs_lean.top10, aes(avg_log2FC, -log10(p_val), label = gene)) + xlab("average log2 Fold Change") + ylab("-log10(Pvalue)")
-
+  geom_point(data = markers.obese_vs_lean.top10, aes(avg_log2FC, -log10(p_val)), color = "red") +
+  geom_text_repel(data = markers.obese_vs_lean.top10, aes(avg_log2FC, -log10(p_val), label = gene)) +
+  xlab("average log2 Fold Change") +
+  ylab("-log10(Pvalue)")
 ```
+
+Can you notice what is going on? Why is there XIST? Why are they Ychromosome genes? Did we capture all the nuances of the experiement design?
+
+
 
 # Functional enrichment
 
+The abovce analysis clearly denotes there is 
 On obvious question to ask with the list of DE genes is what function are these carrying? We can perform a gene ontology enrichment using the gene lists to see what functional categories is each of the DE list enriched in.
 
 ```{r}
-library(clusterProfiler)
-library(org.Hs.eg.db)
+suppressPackageStartupMessages({
+  library(clusterProfiler)
+  library(org.Hs.eg.db)
+})
 
 
 universe.genes <- rownames(integrated@assays$SCT@data)
 DoEnrichment <- function(genes, universe.genes) {
-  enrich <- enrichGO(gene = genes,
-                     universe = universe.genes,
-                     OrgDb = org.Hs.eg.db,
-                     keyType = "SYMBOL",
-                     ont = "BP",
-                     pvalueCutoff = 0.05,
-                     qvalueCutoff = 0.05,
-                     readable = TRUE)
+  enrich <- enrichGO(
+    gene = genes,
+    universe = universe.genes,
+    OrgDb = org.Hs.eg.db,
+    keyType = "SYMBOL",
+    ont = "BP",
+    pvalueCutoff = 0.05,
+    qvalueCutoff = 0.05,
+    readable = TRUE
+  )
   return(enrich)
 }
 de.pos <- markers.obese_vs_lean %>%
-  filter(avg_log2FC>0) %>% filter(p_val_adj<0.1) %>% pull (gene)
+  filter(avg_log2FC > 0) %>%
+  filter(p_val_adj < 0.1) %>%
+  pull(gene)
 
 de.neg <- markers.obese_vs_lean %>%
-  filter(avg_log2FC<0) %>% filter(p_val_adj<0.1) %>% pull (gene)
+  filter(avg_log2FC < 0) %>%
+  filter(p_val_adj < 0.1) %>%
+  pull(gene)
 
 
 enrichment.pos <- DoEnrichment(genes = de.pos, universe.genes = universe.genes)
@@ -597,24 +625,23 @@ enrichment.neg <- DoEnrichment(genes = de.neg, universe.genes = universe.genes)
 ```
 
 ```{r}
-                                
-barplot(enrichment.pos)+ ggtitle("Enrichment of Obese upregulated genes")
+barplot(enrichment.pos) + ggtitle("Enrichment of Obese upregulated genes")
 ```
 
 ```{r}
-
 barplot(enrichment.neg, showTerms = 7) + ggtitle("Enrichment of Obese downregulated genes")
-
 ```
 
 # Homework
 
-1.  Integrate all the different patients that we left out in this analysis and annotate the hepatocyte cluster.
+1. Integrate all the different patients that we left out in this analysis and annotate the hepatocyte cluster. 
 
-2.  Using the hepatocyte cluster, identify zonation markers for the different zones of the liver. You can use the following markers as a guide:
+2. Using the hepatocyte cluster, identify zonation markers for the different zones of the liver. You can use the following markers as a guide:
+
 
 |  |  |
-|------------------------------------|------------------------------------|
+|----|----|
 | Zone 1 (periportal) | ALB, CPS1, ARG1, PCK1, SDH, SULT1A1, IGF1 |
 | Zone 2 (Midlobular) | HAMP, IGFB2, CYP8B1 |
 | Zone 3(perivenous) | GS,GLT,CAR,AHR,CYP1A, CYP2E1, CYP3A, GSTM1, GK,IGFB1, B-CATENIN |
+
